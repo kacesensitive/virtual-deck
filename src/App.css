@@ -1,0 +1,59 @@
+.button-grid {
+  display: grid;
+  position: relative;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  height: 100%;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+  z-index: 1;
+}
+
+.popover-container {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1001;
+}
+
+.obs-stat-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1001;
+}
+
+.square-button {
+  width: 100px;
+  height: 100px;
+  position: relative;
+  border: black 2px solid;
+  border-radius: 8px;
+  overflow: hidden;
+  word-wrap: break-word;
+  z-index: 2;
+}
+
+.square-button button {
+  width: 100%;
+  height: 100%;
+  max-width: 100px;
+  max-height: 100px;
+  color: white;
+  transition: background 0.3s ease-in-out;
+}
+
+.clicked {
+  transform: scale(0.9);
+  transition: transform 0.2s;
+}
+
+.spin-on-hover:hover {
+  transform: rotate(360deg);
+  transition: transform 0.5s ease;
+}

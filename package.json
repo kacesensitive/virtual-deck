@@ -1,0 +1,36 @@
+{
+  "name": "virtual-deck",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@fontsource/roboto": "^5.0.8",
+    "@mui/icons-material": "^5.14.7",
+    "@mui/material": "^5.14.7",
+    "@tauri-apps/api": "^1.4.0",
+    "framer-motion": "^10.16.2",
+    "node-youtube-music": "^0.10.3",
+    "obs-websocket-js": "^5.0.3",
+    "react": "^18.2.0",
+    "react-beautiful-dnd": "^13.1.1",
+    "react-dom": "^18.2.0",
+    "react-webcam": "^7.1.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.4.0",
+    "@types/react": "^18.2.15",
+    "@types/react-beautiful-dnd": "^13.1.4",
+    "@types/react-dom": "^18.2.7",
+    "@types/react-json-editor-ajrm": "^2.5.3",
+    "@vitejs/plugin-react": "^4.0.3",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.4"
+  }
+}

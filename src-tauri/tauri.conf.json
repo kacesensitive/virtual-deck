@@ -1,0 +1,71 @@
+{
+  "build": {
+    "beforeDevCommand": "yarn dev",
+    "beforeBuildCommand": "yarn build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist",
+    "withGlobalTauri": false
+  },
+  "package": {
+    "productName": "Virtual Deck",
+    "version": "0.0.0"
+  },
+  "tauri": {
+    "macOSPrivateApi": true,
+    "allowlist": {
+      "path": {
+        "all": true
+      },
+      "fs": {
+        "all": true,
+        "scope": [
+          "**"
+        ]
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": [
+          "**"
+        ]
+      },
+      "clipboard": {
+        "all": true,
+        "writeText": true,
+        "readText": true
+      },
+      "all": false,
+      "shell": {
+        "all": true,
+        "open": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.kacey.dev",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Virtual Deck",
+        "width": 540,
+        "height": 380,
+        "minWidth": 540,
+        "minHeight": 380,
+        "transparent": false,
+        "alwaysOnTop": true
+      }
+    ]
+  }
+}
