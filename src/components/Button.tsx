@@ -13,6 +13,7 @@ interface CustomButtonProps {
     sceneName?: string;
     image?: File;
     imageName: string;
+    appSettings?: any;
 }
 
 export const CustomButton: React.FC<CustomButtonProps> = ({
@@ -24,6 +25,7 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
     sceneName,
     imageName,
     obs,
+    appSettings,
     onContextMenu,
 }) => {
     const [clicked, setClicked] = useState(false);
@@ -34,7 +36,7 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
             if (imageName) {
                 try {
                     const userDir: string = await invoke('get_user_dir');
-                    const basePath = await path.join(userDir, 'Library/Application Support/com.tauri.dev');
+                    const basePath = await path.join(userDir, 'Library/Application Support/com.kacey.dev');
                     const newImagePath = await path.join(basePath, imageName);
                     const apiPath = tauri.convertFileSrc(newImagePath);
                     setImagePath(apiPath);
@@ -59,7 +61,9 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
     const changeScene = async () => {
         setClicked(true);
         try {
-            obs.call('SetCurrentProgramScene', { 'sceneName': sceneName })
+            obs.connect(appSettings.obsAddress, appSettings.obsPassword).then(() => {
+                obs.call('SetCurrentProgramScene', { 'sceneName': sceneName })
+            });
         } catch (err) {
             console.error(`Error changing to scene ${sceneName}:`, err);
         }

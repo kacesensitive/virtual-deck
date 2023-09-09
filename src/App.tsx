@@ -1,57 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, InputAdornment, Popover, IconButton, List, ListItem, Menu, MenuItem, Tooltip } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, InputAdornment, Popover, IconButton, List, ListItem, Menu, MenuItem, Tooltip, ListItemIcon, ListItemText, Select, InputLabel, FormControl } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AddIcon from '@mui/icons-material/Add';
-import OBSWebSocket from 'obs-websocket-js';
 import { DeleteDialogComponent } from './components/DeleteDialog';
 import { SnackbarComponent } from './components/Snackbar';
 import { CustomButton } from './components/Button';
 import { CloudCircleTwoTone } from '@mui/icons-material';
-import { writeBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
-
-type ButtonProps = {
-  command: string;
-  name: string;
-  colorStart: string;
-  colorEnd: string;
-  textColor: string;
-  sceneName: string;
-  image?: File;
-  imageName: string;
-};
-
-type Config = {
-  buttons: ButtonProps[];
-};
-
-const useOBS = (url: string, password: string) => {
-  const obs = new OBSWebSocket();
-  const [obsStatus, setObsStatus] = useState(false);
-  obs.connect(url, password)
-    .then(() => {
-      console.log('Connected to OBS');
-      setObsStatus(true);
-    })
-    .catch(err => {
-      console.error('Could not connect to OBS:', err);
-      setObsStatus(false);
-    });
-
-  obs.on('ConnectionClosed', () => {
-    setObsStatus(false);
-  });
-
-  return {
-    obsStatus,
-    obs,
-  };
-};
-
-type AppSettings = {
-  obsAddress: string;
-  obsPassword: string;
-};
+import { saveImage } from './utils/saveImage';
+import { AppSettings, ButtonProps, Config } from './types/types';
+import useOBS from './utils/useObs';
+import { guid } from './utils/guid';
+import MovieIcon from '@mui/icons-material/Movie';
 
 function App() {
   const [config, setConfig] = useState<Config>(() => {
@@ -63,16 +23,18 @@ function App() {
   const [configInput, setConfigInput] = useState('');
   const [snackBarOpen, setSnackBarOpen] = useState(false);
   const [newButtonDialogOpen, setNewButtonDialogOpen] = useState(false);
-  const [newButton, setNewButton] = useState<ButtonProps>({ command: '', name: '', colorStart: '#000000', colorEnd: '#000000', textColor: '#ff2600', sceneName: '', imageName: '' });
+  const [newButton, setNewButton] = useState<ButtonProps>({ id: guid, command: '', name: '', colorStart: '#000000', colorEnd: '#000000', textColor: '#ff2600', sceneName: '', imageName: '' });
   const [editButton, setEditButton] = useState<ButtonProps | null>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [scenesDialogOpen, setScenesDialogOpen] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings>(() => {
     const savedSettings = window.localStorage.getItem('appSettings');
     return JSON.parse(savedSettings || '{"obsAddress": "", "obsPassword": ""}');
   });
-  const obsConnection = useOBS(appSettings.obsAddress, appSettings.obsPassword);
-  const obsStatus = obsConnection.obsStatus;
-  const obs = obsConnection.obs;
+  let obsConnection = useOBS(appSettings.obsAddress, appSettings.obsPassword);
+  let obsStatus = obsConnection.obsStatus;
+  let obs = obsConnection.obs;
+  localStorage.debug = 'obs-websocket-js:*';
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [buttonToDelete, setButtonToDelete] = useState<number | null>(null);
@@ -83,49 +45,14 @@ function App() {
   const [tempObsAddress, setTempObsAddress] = useState('');
   const [tempObsPassword, setTempObsPassword] = useState('');
 
-  const saveImage = async (buttonData: any): Promise<ButtonProps | any> => {
-    if (buttonData?.image) {
-      const file = buttonData.image;
-      try {
-        console.log('Reading file data');
-        const base64data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onloadend = () => {
-            if (reader.result && typeof reader.result === 'string') {
-              resolve(reader.result.split(',')[1]);
-            } else {
-              reject(new Error('Failed to read file data'));
-            }
-          };
-        });
-        console.log('Saving file');
-        const binaryString = window.atob(base64data);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const response = await writeBinaryFile(buttonData.name + '.png', bytes, { dir: BaseDirectory.AppData });
-        console.log('File saved successfully', buttonData, response);
-        return { ...buttonData, imageName: buttonData.name + '.png' };
-      } catch (error) {
-        console.error('Failed to save file', error);
-        return buttonData;
-      }
-    } else {
-      return buttonData;
-    }
-  };
-
-
+  const [obsScenes, setObsScenes] = useState<string[]>([]);
 
   const handleNewButton = async () => {
     try {
       if (newButton) {
         const updatedNewButton = await saveImage(newButton);
         setConfig(prevConfig => ({ buttons: [...prevConfig.buttons, updatedNewButton] }));
-        setNewButton({ command: '', name: '', colorStart: '#000000', colorEnd: '#000000', textColor: '#ff2600', sceneName: '', imageName: '' });
+        setNewButton({ id: guid, command: '', name: '', colorStart: '#000000', colorEnd: '#000000', textColor: '#ff2600', sceneName: '', imageName: '' });
       }
     } catch (error) {
       console.error('Failed to add new button:', error);
@@ -174,20 +101,41 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem('config', JSON.stringify(config));
     window.localStorage.setItem('appSettings', JSON.stringify(appSettings));
-    if (appSettings.obsAddress && appSettings.obsPassword) {
-      obs.connect(appSettings.obsAddress, appSettings.obsPassword)
-        .catch(err => console.error('Could not connect to OBS:', err));
-    }
   }, [config, appSettings]);
+
+  useEffect(() => {
+    window.localStorage.setItem('config', JSON.stringify(config));
+  }, [config]);
+
+  useEffect(() => {
+    console.log('obsStatus', obsStatus);
+    if (obsStatus) {
+      console.log('Getting scenes');
+      getScenes();
+      console.log('Got scenes');
+    }
+  }, [obsStatus]);
+
+  const getScenes = async () => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      obs.call('GetSceneList').then((data: any) => {
+        console.log(data);
+        const scenes = data.scenes.map((scene: any) => scene.sceneName);
+        setObsScenes(scenes);
+      }).catch((err: any) => {
+        console.error('Failed to get scenes:', err);
+      });
+    } catch (error) {
+      console.error('Failed to get scenes:', error);
+    }
+  };
 
   const handleSettingsSave = () => {
     setAppSettings({ obsAddress: tempObsAddress || appSettings.obsAddress, obsPassword: tempObsPassword || appSettings.obsPassword });
     setSettingsDialogOpen(false);
   };
 
-  useEffect(() => {
-    window.localStorage.setItem('config', JSON.stringify(config));
-  }, [config]);
 
   const handleDialogSave = () => {
     try {
@@ -240,6 +188,7 @@ function App() {
           {...btn}
           onContextMenu={(e) => handleContextMenu(e, index)}
           obs={obs}
+          appSettings={appSettings}
         />
       ))}
 
@@ -262,7 +211,7 @@ function App() {
         <IconButton
           aria-haspopup="true"
           onMouseEnter={e => setPopoverAnchor(e.currentTarget)}
-          style={{ position: 'absolute', top: -2, right: -2, transition: 'transform .2s', zIndex: 1000 }} // Added a high zIndex
+          style={{ position: 'absolute', top: -2, right: -2, transition: 'transform .2s', zIndex: 1000 }}
           className="spin-on-hover"
         >
           <SettingsIcon />
@@ -285,6 +234,7 @@ function App() {
             <ListItem button onClick={() => { setConfigInput(JSON.stringify(config, null, 2)); setOpen(true); }}>Import</ListItem>
             <ListItem button onClick={exportConfig}>Export</ListItem>
             <ListItem button onClick={() => setSettingsDialogOpen(true)}>Settings</ListItem>
+            <ListItem button onClick={() => setScenesDialogOpen(true)}>Scenes</ListItem>
 
             <Dialog open={settingsDialogOpen} onClose={() => setSettingsDialogOpen(false)}>
               <DialogTitle style={{
@@ -311,6 +261,25 @@ function App() {
                 <Button onClick={() => setSettingsDialogOpen(false)}>Cancel</Button>
                 <Button onClick={handleSettingsSave}>Save</Button>
               </DialogActions>
+            </Dialog>
+            <Dialog open={scenesDialogOpen} onClose={() => setScenesDialogOpen(false)}>
+              <DialogTitle style={{
+                paddingBottom: "20px",
+              }}>Scenes</DialogTitle>
+              <DialogContent>
+                <List>
+                  {obsScenes.map(scene => {
+                    return (
+                      <ListItem key={scene}>
+                        <ListItemIcon>
+                          <MovieIcon />
+                        </ListItemIcon>
+                        <ListItemText primary={scene} />
+                      </ListItem>
+                    )
+                  })}
+                </List>
+              </DialogContent>
             </Dialog>
           </List>
         </Popover>
@@ -386,9 +355,25 @@ function App() {
               ),
             }}
           />
-          <TextField style={{
-            paddingBottom: "20px",
-          }} label="Scene Name" value={editButton?.sceneName} fullWidth onChange={e => editButton && setEditButton({ ...editButton, sceneName: e.target.value })} />
+          <FormControl variant="filled" sx={{ width: "100%" }}>
+            <InputLabel id="demo-simple-select-filled-label">Scene Name</InputLabel>
+            <Select
+              labelId="demo-simple-select-standard-label"
+              id="demo-simple-select-standard"
+              style={{
+                width: "100%",
+              }}
+              label="Scene Name"
+              value={editButton?.sceneName}
+              onChange={e => editButton && setEditButton({ ...editButton, sceneName: e.target.value })}
+            >
+              {obsScenes.map(scene => {
+                return (
+                  <MenuItem key={scene} value={scene}>{scene}</MenuItem>
+                )
+              })}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
