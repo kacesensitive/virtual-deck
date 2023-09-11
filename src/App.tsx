@@ -13,6 +13,17 @@ import useOBS from './utils/useObs';
 import { guid } from './utils/guid';
 import MovieIcon from '@mui/icons-material/Movie';
 
+type VersionData = {
+  availableRequests?: string[];
+  obsVersion?: string;
+  obsWebSocketVersion?: string;
+  platform?: string;
+  platformDescription?: string;
+  rpcVersion?: number;
+  supportedImageFormats?: string[];
+};
+
+
 function App() {
   const [config, setConfig] = useState<Config>(() => {
     const savedConfig = window.localStorage.getItem('config');
@@ -27,6 +38,9 @@ function App() {
   const [editButton, setEditButton] = useState<ButtonProps | null>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [scenesDialogOpen, setScenesDialogOpen] = useState(false);
+
+  const [versionDialogOpen, setVersionDialogOpen] = useState(false);
+
   const [appSettings, setAppSettings] = useState<AppSettings>(() => {
     const savedSettings = window.localStorage.getItem('appSettings');
     return JSON.parse(savedSettings || '{"obsAddress": "", "obsPassword": ""}');
@@ -46,6 +60,10 @@ function App() {
   const [tempObsPassword, setTempObsPassword] = useState('');
 
   const [obsScenes, setObsScenes] = useState<string[]>([]);
+  const [obsSceneImages, setObsSceneImages] = useState<any[]>([]);
+  const [sceneScreenshotsLoading, setSceneScreenshotsLoading] = useState(false);
+
+  const [versionData, setVersionData] = useState<VersionData>();
 
   const handleNewButton = async () => {
     try {
@@ -112,6 +130,7 @@ function App() {
     if (obsStatus) {
       console.log('Getting scenes');
       getScenes();
+      getVersion();
       console.log('Got scenes');
     }
   }, [obsStatus]);
@@ -128,6 +147,42 @@ function App() {
       });
     } catch (error) {
       console.error('Failed to get scenes:', error);
+    }
+  };
+
+  const getVersion = async () => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      obs.call('GetVersion').then((data: any) => {
+        setVersionData(data);
+      }).catch((err: any) => {
+        console.error('Failed to get version:', err);
+      });
+    } catch (error) {
+      console.error('Failed to get version:', error);
+    }
+  };
+
+  const getSceneScreenshots = async () => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      obs.connect(appSettings.obsAddress, appSettings.obsPassword)
+        .then(() => {
+          let obsSceneImages: string[] = [];
+          obsScenes.forEach(sceneName => {
+            obs.call('GetSourceScreenshot', { sourceName: sceneName, imageFormat: 'png', imageCompressionQuality: 0, imageWidth: 200, imageHeight: 112 }).then((data: any) => {
+              console.log(JSON.stringify(data));
+              obsSceneImages.push(data.imageData);
+            }).catch((err: any) => {
+              console.error('Failed to get source screenshot:', err);
+            }
+            );
+          });
+          setObsSceneImages(obsSceneImages);
+        });
+      setSceneScreenshotsLoading(false);
+    } catch (error) {
+      console.error('Failed to get source screenshot:', error);
     }
   };
 
@@ -234,7 +289,12 @@ function App() {
             <ListItem button onClick={() => { setConfigInput(JSON.stringify(config, null, 2)); setOpen(true); }}>Import</ListItem>
             <ListItem button onClick={exportConfig}>Export</ListItem>
             <ListItem button onClick={() => setSettingsDialogOpen(true)}>Settings</ListItem>
-            <ListItem button onClick={() => setScenesDialogOpen(true)}>Scenes</ListItem>
+            <ListItem button onClick={() => {
+              setScenesDialogOpen(true);
+              getSceneScreenshots();
+              setSceneScreenshotsLoading(true);
+            }}>Scenes</ListItem>
+            <ListItem button onClick={() => setVersionDialogOpen(true)}>Versions</ListItem>
 
             <Dialog open={settingsDialogOpen} onClose={() => setSettingsDialogOpen(false)}>
               <DialogTitle style={{
@@ -268,13 +328,24 @@ function App() {
               }}>Scenes</DialogTitle>
               <DialogContent>
                 <List>
-                  {obsScenes.map(scene => {
+                  {obsScenes.map((scene, index) => {
                     return (
                       <ListItem key={scene}>
                         <ListItemIcon>
-                          <MovieIcon />
+                          {sceneScreenshotsLoading && !Array.isArray(obsSceneImages) && !obsSceneImages[index] ? (
+                            <MovieIcon />
+                          ) : (
+                            <img
+                              src={obsSceneImages[index]}
+                              alt="img"
+                            />
+                          )}
                         </ListItemIcon>
-                        <ListItemText primary={scene} />
+                        <ListItemText primary={scene} style={
+                          {
+                            marginLeft: '10px',
+                          }
+                        } />
                       </ListItem>
                     )
                   })}
@@ -480,6 +551,28 @@ function App() {
           <Button onClick={handleDialogSave}>Save</Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog open={versionDialogOpen} onClose={() => setVersionDialogOpen(false)}>
+        <DialogTitle>System Versions</DialogTitle>
+        <DialogContent>
+          <div>{versionData?.platformDescription}</div>
+          <div>RPC: {versionData?.rpcVersion}</div>
+          <div>OBS Version: {versionData?.obsVersion}</div>
+          <div>OBS Websocket Version: {versionData?.obsWebSocketVersion}</div>
+        </DialogContent>
+      </Dialog>
+
+      {versionData && (
+        <div style={{
+          position: 'absolute',
+          bottom: '0',
+          left: '0',
+          padding: '10px',
+          fontSize: '12px',
+          color: 'grey',
+        }}>
+        </div>
+      )}
     </div>
   );
 }
